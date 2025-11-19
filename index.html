@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="description" content="Track your daily water intake and stay hydrated">
+    <meta http-equiv="Content-Security-Policy" 
+          content="default-src 'self'; 
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
+                   font-src 'self' https://fonts.gstatic.com; 
+                   img-src 'self' data:;
+                   script-src 'self' 'unsafe-inline';">
+    
+    <title>💧 Water Tracker v2.0</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css?v=2000000">
+    
+    <!-- iOS PWA Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Water Tracker">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>💧 Water Tracker</h1>
+        </div>
+
+        <!-- Today's Progress Card -->
+        <div class="progress-card">
+            <div class="card-header">
+                <h2>Today's Progress</h2>
+                <div class="date-display" id="current-date">Wednesday, Aug 20</div>
+            </div>
+            
+            <div class="progress-info">
+                <div class="glasses-count">
+                    <span id="current-glasses">0</span> cups
+                </div>
+                <div class="goal-info">
+                    Goal: <span id="goal-glasses">8-10</span> cups
+                </div>
+            </div>
+
+            <div class="progress-bar-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-toast-wrapper" aria-live="polite">
+                    <div class="progress-toast" id="goal-toast"></div>
+                    <div class="progress-toast" id="perfect-toast"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Your Water Card -->
+        <div class="log-card">
+            <h2>Log Your Water</h2>
+            
+            <div class="glass-buttons">
+                <button class="glass-btn" data-glasses="1" aria-label="Add 1 cup of water">
+                    <div class="glass-icon">
+                        <img src="icons/Water-glass.png" alt="Water glass icon" class="glass-img">
+                    </div>
+                    <div class="glass-label">1 cup</div>
+                </button>
+                <button class="glass-btn" data-glasses="2" aria-label="Add 2 cups of water">
+                    <div class="glass-icon glass-icon-double">
+                        <img src="icons/Water-glass.png" alt="Water glass icon" class="glass-img">
+                        <img src="icons/Water-glass.png" alt="Water glass icon" class="glass-img">
+                    </div>
+                    <div class="glass-label">2 cups</div>
+                </button>
+            </div>
+
+            <div class="action-buttons">
+                <button class="reset-btn" id="reset-btn" aria-label="Reset today's water intake">Reset Day</button>
+            </div>
+        </div>
+
+        <!-- History Card -->
+        <div class="history-card">
+            <div class="history-header">
+                <h2>History</h2>
+                <div class="period-selector">Last 7 Days</div>
+            </div>
+
+            <div class="history-tabs" role="tablist" aria-label="Time period selection">
+                <button class="history-tab active" data-period="week" role="tab" aria-selected="true" aria-controls="history-list">Week</button>
+                <button class="history-tab" data-period="month" role="tab" aria-selected="false" aria-controls="history-list">Month</button>
+                <button class="history-tab" data-period="year" role="tab" aria-selected="false" aria-controls="history-list">Year</button>
+            </div>
+
+            <div class="date-navigation">
+                <button class="nav-btn" id="prev-period" aria-label="View previous period">&lt;</button>
+                <div class="date-range" id="date-range">Aug 14 - Aug 20</div>
+                <button class="nav-btn" id="next-period" aria-label="View next period">&gt;</button>
+            </div>
+
+            <div class="history-list" id="history-list" role="tabpanel">
+                <!-- Dynamic content will be inserted here -->
+            </div>
+
+            <div class="history-summary">
+                <div class="summary-item">
+                    <span class="summary-value" id="avg-glasses">0.0 cups</span>
+                    <span class="summary-label">Average</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-value" id="goal-days">0 days</span>
+                    <span class="summary-label">Goal Days</span>
+                </div>
+            </div>
+
+            <div class="settings-container">
+                <button class="hamburger-btn" id="settings-btn" aria-label="Open settings">
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                </button>
+                <span class="settings-label">Settings</span>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal" id="settings-modal" role="dialog" aria-labelledby="settings-title" aria-modal="true">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="settings-title">⚙️ Settings</h3>
+                    <button class="close-btn" id="close-settings" aria-label="Close settings">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-item">
+                        <label>Daily Goal:</label>
+                        <div class="fixed-goal-note">This app tracks between 8 and 10 cups per day. Stay hydrated! 💧</div>
+                    </div>
+                    <div class="setting-item">
+                        <label>Backup & Restore:</label>
+                        <div class="backup-controls">
+                            <button id="export-data" class="backup-btn" aria-label="Export your water tracking data">📤 Export Data</button>
+                            <button id="import-data" class="backup-btn" aria-label="Import water tracking data">📥 Import Data</button>
+                            <input type="file" id="import-file" accept=".json" style="display: none;" aria-hidden="true">
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label>App Version:</label>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                            <span style="color: #888;">v2.0.0</span>
+                            <button id="check-updates" class="backup-btn" style="max-width: 120px;" aria-label="Check for app updates">🔄 Check Updates</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <button id="reset-all-data" class="danger-btn" aria-label="Delete all water tracking data">🗑️ Reset All Data</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="close-settings-footer" class="save-btn">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=2000000"></script>
+    <script>
+        let registration = null;
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((reg) => {
+                        console.log('ServiceWorker registration successful');
+                        attachUpdateListeners(reg);
+                    })
+                    .catch((err) => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+
+        function attachUpdateListeners(reg) {
+            registration = reg;
+
+            monitorWorker(reg.waiting);
+            monitorWorker(reg.installing);
+
+            setInterval(() => {
+                reg.update().catch((err) => {
+                    console.log('ServiceWorker update check failed:', err);
+                });
+            }, 60000);
+
+            reg.addEventListener('updatefound', () => {
+                monitorWorker(reg.installing);
+            });
+
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                window.location.reload();
+            });
+        }
+
+        function monitorWorker(worker) {
+            if (!worker) return;
+
+            if (worker.state === 'installed') {
+                showUpdateNotification();
+                return;
+            }
+
+            const listener = () => {
+                if (worker.state === 'installed') {
+                    worker.removeEventListener('statechange', listener);
+                    showUpdateNotification();
+                }
+            };
+
+            worker.addEventListener('statechange', listener);
+        }
+
+        function showUpdateNotification() {
+            if (document.getElementById('update-banner')) return;
+
+            const updateBanner = document.createElement('div');
+            updateBanner.id = 'update-banner';
+            updateBanner.innerHTML = `
+                <div style="
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    background: #4a9eff;
+                    color: white;
+                    padding: 15px;
+                    text-align: center;
+                    z-index: 9999;
+                    font-weight: 600;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                ">
+                    🔄 New version available!
+                    <button onclick="updateApp()" style="
+                        background: white;
+                        color: #4a9eff;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 20px;
+                        margin-left: 10px;
+                        font-weight: 600;
+                        cursor: pointer;
+                    ">Update Now</button>
+                    <button onclick="dismissUpdate()" style="
+                        background: transparent;
+                        color: white;
+                        border: 1px solid white;
+                        padding: 8px 16px;
+                        border-radius: 20px;
+                        margin-left: 8px;
+                        font-weight: 600;
+                        cursor: pointer;
+                    ">Later</button>
+                </div>
+            `;
+            document.body.appendChild(updateBanner);
+        }
+
+        window.showUpdateNotification = showUpdateNotification;
+
+        function updateApp() {
+            const attemptUpdate = (reg) => {
+                if (reg && reg.waiting) {
+                    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                }
+            };
+
+            if (registration) {
+                attemptUpdate(registration);
+            } else {
+                navigator.serviceWorker.getRegistration().then(attemptUpdate);
+            }
+        }
+
+        function dismissUpdate() {
+            const banner = document.getElementById('update-banner');
+            if (banner) {
+                banner.remove();
+            }
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && registration) {
+                registration.update().catch((err) => {
+                    console.log('Visibility update check failed:', err);
+                });
+            }
+        });
+    </script>
+</body>
+</html>

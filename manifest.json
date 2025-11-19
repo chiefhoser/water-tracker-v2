@@ -1,0 +1,109 @@
+{
+    "name": "Water Tracker",
+    "short_name": "Water Tracker",
+    "description": "Track your daily water intake and stay hydrated with reminders and progress tracking",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#304254",
+    "orientation": "portrait-primary",
+    "scope": "./",
+    "lang": "en",
+    "categories": [
+        "health",
+        "lifestyle",
+        "utilities"
+    ],
+    "screenshots": [
+        {
+            "src": "screenshots/desktop.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide"
+        },
+        {
+            "src": "screenshots/mobile.png",
+            "sizes": "390x844",
+            "type": "image/png",
+            "form_factor": "narrow"
+        }
+    ],
+    "icons": [
+        {
+            "src": "icons/icon-72x72.png",
+            "sizes": "72x72",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "icons/icon-96x96.png",
+            "sizes": "96x96",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "icons/icon-128x128.png",
+            "sizes": "128x128",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "icons/icon-144x144.png",
+            "sizes": "144x144",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "icons/icon-152x152.png",
+            "sizes": "152x152",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "icons/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "icons/icon-384x384.png",
+            "sizes": "384x384",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable any"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Add 1 Cup",
+            "short_name": "1 Cup",
+            "description": "Quickly add 1 cup of water (250ml)",
+            "url": "./index.html?action=add&amount=250",
+            "icons": [
+                {
+                    "src": "icons/icon-96x96.png",
+                    "sizes": "96x96",
+                    "type": "image/png"
+                }
+            ]
+        },
+        {
+            "name": "Add 2 Cups",
+            "short_name": "2 Cups",
+            "description": "Quickly add 2 cups of water (500ml)",
+            "url": "./index.html?action=add&amount=500",
+            "icons": [
+                {
+                    "src": "icons/icon-96x96.png",
+                    "sizes": "96x96",
+                    "type": "image/png"
+                }
+            ]
+        }
+    ]
+}
