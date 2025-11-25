@@ -15,7 +15,7 @@
     <title>💧 Water Tracker v2.0</title>
     
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="styles.css?v=2000000">
+    <link rel="stylesheet" href="styles.css?v=2000001">
     
     <!-- iOS PWA Support -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -164,137 +164,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=2000000"></script>
-    <script>
-        let registration = null;
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then((reg) => {
-                        console.log('ServiceWorker registration successful');
-                        attachUpdateListeners(reg);
-                    })
-                    .catch((err) => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-            });
-        }
-
-        function attachUpdateListeners(reg) {
-            registration = reg;
-
-            monitorWorker(reg.waiting);
-            monitorWorker(reg.installing);
-
-            setInterval(() => {
-                reg.update().catch((err) => {
-                    console.log('ServiceWorker update check failed:', err);
-                });
-            }, 60000);
-
-            reg.addEventListener('updatefound', () => {
-                monitorWorker(reg.installing);
-            });
-
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                window.location.reload();
-            });
-        }
-
-        function monitorWorker(worker) {
-            if (!worker) return;
-
-            if (worker.state === 'installed') {
-                showUpdateNotification();
-                return;
-            }
-
-            const listener = () => {
-                if (worker.state === 'installed') {
-                    worker.removeEventListener('statechange', listener);
-                    showUpdateNotification();
-                }
-            };
-
-            worker.addEventListener('statechange', listener);
-        }
-
-        function showUpdateNotification() {
-            if (document.getElementById('update-banner')) return;
-
-            const updateBanner = document.createElement('div');
-            updateBanner.id = 'update-banner';
-            updateBanner.innerHTML = `
-                <div style="
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    background: #4a9eff;
-                    color: white;
-                    padding: 15px;
-                    text-align: center;
-                    z-index: 9999;
-                    font-weight: 600;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-                ">
-                    🔄 New version available!
-                    <button onclick="updateApp()" style="
-                        background: white;
-                        color: #4a9eff;
-                        border: none;
-                        padding: 8px 16px;
-                        border-radius: 20px;
-                        margin-left: 10px;
-                        font-weight: 600;
-                        cursor: pointer;
-                    ">Update Now</button>
-                    <button onclick="dismissUpdate()" style="
-                        background: transparent;
-                        color: white;
-                        border: 1px solid white;
-                        padding: 8px 16px;
-                        border-radius: 20px;
-                        margin-left: 8px;
-                        font-weight: 600;
-                        cursor: pointer;
-                    ">Later</button>
-                </div>
-            `;
-            document.body.appendChild(updateBanner);
-        }
-
-        window.showUpdateNotification = showUpdateNotification;
-
-        function updateApp() {
-            const attemptUpdate = (reg) => {
-                if (reg && reg.waiting) {
-                    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-                }
-            };
-
-            if (registration) {
-                attemptUpdate(registration);
-            } else {
-                navigator.serviceWorker.getRegistration().then(attemptUpdate);
-            }
-        }
-
-        function dismissUpdate() {
-            const banner = document.getElementById('update-banner');
-            if (banner) {
-                banner.remove();
-            }
-        }
-
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && registration) {
-                registration.update().catch((err) => {
-                    console.log('Visibility update check failed:', err);
-                });
-            }
-        });
-    </script>
+    <script src="app.js?v=2000001"></script>
+    <script src="sw-registration.js?v=2000001"></script>
 </body>
 </html>
