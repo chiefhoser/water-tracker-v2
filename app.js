@@ -1,7 +1,54 @@
 /**
  * Water Tracker PWA - Main Application
- * Version 2.0 - Improved with better error handling, performance, and accessibility
+ * Version 2.0.1 - Improved with better error handling, performance, and accessibility
  */
+
+/**
+ * @typedef {Object} DayData
+ * @property {number} glasses - Number of glasses consumed
+ * @property {number} goal - Daily goal
+ * @property {number} goalMax - Maximum daily goal
+ * @property {string} date - Date string
+ * @property {number} [timestamp] - Unix timestamp
+ */
+
+/**
+ * @typedef {Object} WeekData
+ * @property {number} weekNumber - Week number in period
+ * @property {string} dateRange - Date range string
+ * @property {number} totalGlasses - Total glasses in week
+ * @property {number} daysWithData - Days with data
+ * @property {number} successDays - Days that met goal
+ */
+
+/**
+ * @typedef {Object} MonthData
+ * @property {string} monthName - Month name
+ * @property {number} year - Year
+ * @property {number} totalGlasses - Total glasses in month
+ * @property {number} daysWithData - Days with data
+ * @property {number} successDays - Days that met goal
+ */
+
+/**
+ * Logger utility for development and production logging
+ */
+class Logger {
+    static isDevelopment = window.location.hostname === 'localhost' ||
+                          window.location.hostname === '127.0.0.1';
+
+    static log(...args) {
+        if (this.isDevelopment) console.log(...args);
+    }
+
+    static warn(...args) {
+        if (this.isDevelopment) console.warn(...args);
+    }
+
+    static error(...args) {
+        console.error(...args); // Always show errors
+    }
+}
 
 class WaterTracker {
     // Constants
@@ -14,7 +61,10 @@ class WaterTracker {
         WEEK_DAYS: 7,
         MONTH_DAYS: 30,
         YEAR_DAYS: 365,
-        APP_VERSION: '2.0.0'
+        APP_VERSION: '2.0.1',
+        ANIMATION_CLASS: 'water-popup-animation',
+        TOAST_GOAL_CLASS: 'toast-goal',
+        TOAST_PERFECT_CLASS: 'toast-perfect'
     };
 
     constructor() {
@@ -27,14 +77,28 @@ class WaterTracker {
         this.lastHistoryHash = null; // For optimized rendering
         this.animationStyleInjected = false;
         this.escapeHandler = null;
+        this._navigating = false; // For debouncing navigation
 
-        this.initializeApp();
-        this.loadData();
-        this.setupEventListeners();
-        this.updateDisplay();
-        this.updateDate();
-        this.updateHistory();
-        this.handleURLParameters();
+        try {
+            this.initializeApp();
+            this.loadData();
+            this.setupEventListeners();
+            this.updateDisplay();
+            this.updateDate();
+            this.updateHistory();
+            this.handleURLParameters();
+            this.setupOfflineDetection();
+        } catch (error) {
+            Logger.error('Failed to initialize app:', error);
+            this.showMessage('Failed to start the app. Please refresh.', 'error');
+            // Attempt minimal recovery
+            try {
+                this.initializeApp();
+                this.setupEventListeners();
+            } catch (recoveryError) {
+                Logger.error('Recovery failed:', recoveryError);
+            }
+        }
     }
 
     /**
@@ -79,10 +143,65 @@ class WaterTracker {
             }
 
             if (!element) {
-                console.error(`Required element not found: ${selector}`);
+                Logger.error(`Required element not found: ${selector}`);
             }
             this.elements[key] = element;
         }
+    }
+
+    /**
+     * Sanitize text for HTML insertion
+     * @param {string} text - Text to sanitize
+     * @returns {string} Sanitized text
+     */
+    sanitizeHTML(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    /**
+     * Get normalized date key for storage
+     * @param {Date} date - Date object
+     * @returns {string} Normalized date string
+     */
+    getDateKey(date = new Date()) {
+        return date.toDateString();
+    }
+
+    /**
+     * Announce message to screen readers
+     * @param {string} message - Message to announce
+     */
+    announceToScreenReader(message) {
+        let announcer = document.getElementById('sr-announcer');
+        if (!announcer) {
+            announcer = document.createElement('div');
+            announcer.id = 'sr-announcer';
+            announcer.setAttribute('role', 'status');
+            announcer.setAttribute('aria-live', 'polite');
+            announcer.className = 'sr-only';
+            document.body.appendChild(announcer);
+        }
+        announcer.textContent = message;
+
+        // Clear after announcement
+        setTimeout(() => {
+            announcer.textContent = '';
+        }, 1000);
+    }
+
+    /**
+     * Setup offline/online detection
+     */
+    setupOfflineDetection() {
+        window.addEventListener('online', () => {
+            this.showMessage('Back online', 'success');
+        });
+
+        window.addEventListener('offline', () => {
+            this.showMessage('You are offline. Data will sync when connected.', 'info');
+        });
     }
 
     /**
@@ -272,13 +391,16 @@ class WaterTracker {
             if (this.currentGlasses >= this.dailyGoal) {
                 progressToastWrapper.classList.add('visible');
                 goalToast.textContent = '✅ Goal reached';
-                goalToast.classList.add('visible', 'toast-goal');
+                goalToast.classList.add('visible', WaterTracker.CONSTANTS.TOAST_GOAL_CLASS);
 
                 if (this.currentGlasses >= this.maxGoal) {
                     if (progressBar) progressBar.style.display = 'none';
                     perfectToast.textContent = '⭐ Perfect 10';
-                    perfectToast.classList.add('visible', 'toast-perfect');
+                    perfectToast.classList.add('visible', WaterTracker.CONSTANTS.TOAST_PERFECT_CLASS);
                     progressToastWrapper.classList.add('max-twin');
+                    this.announceToScreenReader('Perfect! You reached 10 cups today!');
+                } else {
+                    this.announceToScreenReader('Great job! You reached your daily goal!');
                 }
             } else if (this.currentGlasses < this.maxGoal) {
                 if (progressBar) progressBar.style.display = '';
@@ -313,7 +435,7 @@ class WaterTracker {
 
         const popup = document.createElement('div');
         popup.textContent = `+${amount} cup${amount !== 1 ? 's' : ''}`;
-        popup.className = 'water-popup-animation';
+        popup.className = WaterTracker.CONSTANTS.ANIMATION_CLASS;
 
         document.body.appendChild(popup);
 
@@ -328,7 +450,7 @@ class WaterTracker {
      * Save current data to history
      */
     saveToHistory() {
-        const today = new Date().toDateString();
+        const today = this.getDateKey();
         this.historicalData[today] = {
             glasses: this.currentGlasses,
             goal: this.dailyGoal,
@@ -340,7 +462,7 @@ class WaterTracker {
         try {
             localStorage.setItem('waterTrackerHistory', JSON.stringify(this.historicalData));
         } catch (error) {
-            console.error('Failed to save history:', error);
+            Logger.error('Failed to save history:', error);
             this.showMessage('Failed to save data. Storage may be full.', 'error');
         }
     }
@@ -357,7 +479,7 @@ class WaterTracker {
             }
 
             // Load today's data
-            const today = new Date().toDateString();
+            const today = this.getDateKey();
             if (this.historicalData[today]) {
                 this.currentGlasses = this.historicalData[today].glasses;
                 this.dailyGoal = this.historicalData[today].goal || this.dailyGoal;
@@ -381,7 +503,7 @@ class WaterTracker {
             this.dailyGoal = Math.min(Math.max(this.dailyGoal, WaterTracker.CONSTANTS.MIN_DAILY_GOAL), this.maxGoal);
             this.currentGlasses = Math.min(this.currentGlasses, this.maxGoal);
         } catch (error) {
-            console.error('Failed to load data:', error);
+            Logger.error('Failed to load data:', error);
             this.showMessage('Failed to load saved data.', 'error');
         }
     }
@@ -394,12 +516,12 @@ class WaterTracker {
             const settings = {
                 dailyGoal: this.dailyGoal,
                 maxGoal: this.maxGoal,
-                lastSaved: new Date().toDateString()
+                lastSaved: this.getDateKey()
             };
             localStorage.setItem('waterTrackerSettings', JSON.stringify(settings));
             this.saveToHistory();
         } catch (error) {
-            console.error('Failed to save data:', error);
+            Logger.error('Failed to save data:', error);
             this.showMessage('Failed to save data. Storage may be full.', 'error');
         }
     }
@@ -412,14 +534,12 @@ class WaterTracker {
         this.currentPeriod = period;
         this.currentOffset = 0; // Reset offset when switching periods
 
-        // Update active tab
+        // Update active tab with ARIA states
         document.querySelectorAll('.history-tab').forEach(tab => {
-            tab.classList.remove('active');
+            const isActive = tab.dataset.period === period;
+            tab.classList.toggle('active', isActive);
+            tab.setAttribute('aria-selected', isActive.toString());
         });
-        const activeTab = document.querySelector(`[data-period="${period}"]`);
-        if (activeTab) {
-            activeTab.classList.add('active');
-        }
 
         this.updateHistory();
     }
@@ -484,7 +604,7 @@ class WaterTracker {
 
     /**
      * Render the history list
-     * @param {Array} days - Array of day data
+     * @param {DayData[]} days - Array of day data
      */
     renderHistoryList(days) {
         if (!this.elements.historyList) return;
@@ -499,10 +619,10 @@ class WaterTracker {
                 return `
                     <div class="history-day">
                         <div class="day-info">
-                            <div class="day-name">${day.dayName}</div>
-                            <div class="day-date">${day.dayDate}</div>
+                            <div class="day-name">${this.sanitizeHTML(day.dayName)}</div>
+                            <div class="day-date">${this.sanitizeHTML(day.dayDate)}</div>
                         </div>
-                        <div class="day-progress ${isCompleted ? 'completed' : ''}">${progress}</div>
+                        <div class="day-progress ${isCompleted ? 'completed' : ''}">${this.sanitizeHTML(progress)}</div>
                     </div>
                 `;
             }).join('');
@@ -516,7 +636,7 @@ class WaterTracker {
                     <div class="history-day">
                         <div class="day-info">
                             <div class="day-name">Week ${week.weekNumber}</div>
-                            <div class="day-date">${week.dateRange}</div>
+                            <div class="day-date">${this.sanitizeHTML(week.dateRange)}</div>
                         </div>
                         <div class="day-progress ${successRate >= 80 ? 'completed' : ''}">${avgGlasses} avg (${successRate}%)</div>
                     </div>
@@ -531,7 +651,7 @@ class WaterTracker {
                 return `
                     <div class="history-day">
                         <div class="day-info">
-                            <div class="day-name">${month.monthName}</div>
+                            <div class="day-name">${this.sanitizeHTML(month.monthName)}</div>
                             <div class="day-date">${month.year}</div>
                         </div>
                         <div class="day-progress ${successRate >= 80 ? 'completed' : ''}">${avgGlasses} avg (${successRate}%)</div>
@@ -597,10 +717,13 @@ class WaterTracker {
     }
 
     /**
-     * Navigate through different time periods
+     * Navigate through different time periods with debouncing
      * @param {number} direction - -1 for previous, 1 for next
      */
     navigatePeriod(direction) {
+        if (this._navigating) return;
+
+        this._navigating = true;
         this.currentOffset += direction;
 
         // Prevent navigating into the future
@@ -609,6 +732,10 @@ class WaterTracker {
         }
 
         this.updateHistory();
+
+        setTimeout(() => {
+            this._navigating = false;
+        }, 300);
     }
 
     /**
@@ -738,19 +865,53 @@ class WaterTracker {
     }
 
     /**
+     * Validate import data structure
+     * @param {Object} data - Data to validate
+     * @returns {boolean} True if valid
+     */
+    validateImportData(data) {
+        if (!data || typeof data !== 'object') {
+            throw new Error('Invalid file format');
+        }
+
+        if (!data.historicalData || typeof data.historicalData !== 'object') {
+            throw new Error('Missing historical data');
+        }
+
+        if (!data.appVersion || typeof data.appVersion !== 'string') {
+            throw new Error('Missing app version');
+        }
+
+        // Validate historical data structure
+        for (const [date, entry] of Object.entries(data.historicalData)) {
+            if (typeof entry.glasses !== 'number' || entry.glasses < 0 || entry.glasses > 20) {
+                throw new Error(`Invalid data for ${date}`);
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Import data from JSON file
      * @param {File} file - The file to import
      */
     async importData(file) {
         if (!file) return;
 
+        const button = this.elements.importData;
+        const originalText = button ? button.textContent : '';
+        if (button) {
+            button.disabled = true;
+            button.textContent = '📥 Importing...';
+        }
+
         try {
             const text = await file.text();
             const importData = JSON.parse(text);
 
-            if (!importData.historicalData || !importData.appVersion) {
-                throw new Error('Invalid backup file format');
-            }
+            // Validate data structure
+            this.validateImportData(importData);
 
             const dayCount = Object.keys(importData.historicalData).length;
             const confirmRestore = confirm(
@@ -789,12 +950,16 @@ class WaterTracker {
             this.showMessage(`Successfully restored ${dayCount} days of data!`, 'success');
 
         } catch (error) {
-            console.error('Import error:', error);
+            Logger.error('Import error:', error);
             this.showMessage('Failed to import data. Please check the file format.', 'error');
-        }
-
-        if (this.elements.importFile) {
-            this.elements.importFile.value = '';
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.textContent = originalText;
+            }
+            if (this.elements.importFile) {
+                this.elements.importFile.value = '';
+            }
         }
     }
 
@@ -811,7 +976,7 @@ class WaterTracker {
             localStorage.removeItem('waterTrackerHistory');
             localStorage.removeItem('waterTrackerSettings');
         } catch (error) {
-            console.error('Failed to clear storage:', error);
+            Logger.error('Failed to clear storage:', error);
         }
 
         this.updateDisplay();
@@ -884,7 +1049,7 @@ class WaterTracker {
                 try {
                     registration = await navigator.serviceWorker.ready;
                 } catch (readyError) {
-                    console.warn('Service worker ready promise failed:', readyError);
+                    Logger.warn('Service worker ready promise failed:', readyError);
                 }
             }
 
@@ -901,8 +1066,9 @@ class WaterTracker {
                     return false;
                 }
 
-                if (typeof window.showUpdateNotification === 'function') {
-                    window.showUpdateNotification();
+                if (typeof window.WaterTrackerSW !== 'undefined' &&
+                    typeof window.WaterTrackerSW.showUpdateNotification === 'function') {
+                    window.WaterTrackerSW.showUpdateNotification();
                 } else {
                     this.showMessage('Update ready - close and reopen to apply', 'info');
                 }
@@ -921,7 +1087,7 @@ class WaterTracker {
             ]);
 
             if (updateResult === 'timeout') {
-                console.warn('Service worker update() timed out');
+                Logger.warn('Service worker update() timed out');
             }
 
             if (showBannerIfWaiting()) {
@@ -948,7 +1114,7 @@ class WaterTracker {
                 this.showMessage('Already running the latest version', 'info');
             }
         } catch (error) {
-            console.error('Manual update check failed:', error);
+            Logger.error('Manual update check failed:', error);
             this.showMessage('Update check failed. Try again later.', 'error');
         } finally {
             resetButton();

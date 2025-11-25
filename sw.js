@@ -1,11 +1,11 @@
-const CACHE_NAME = 'hydrateme-v2000000';
+const CACHE_NAME = 'hydrateme-v2000001';
 const urlsToCache = [
     './',
     './index.html',
     './styles.css',
     './app.js',
-    './manifest.json',
-    'https://fonts.googleapis.com/css2?family=Arimo:ital,wght@0,400;0,700;1,400;1,700&display=swap'
+    './sw-registration.js',
+    './manifest.json'
 ];
 
 // Install event - cache resources
